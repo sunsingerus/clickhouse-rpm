@@ -578,7 +578,16 @@ function setup_local_build()
 
 	# archive current sources dir via symlink - thus archive would
 	# contain ClickHouse-18.14.13-stable folder in ClickHouse-18.14.13-stable.zip file
+	rm -f "${SOURCES_DIR}/ClickHouse-${CH_VERSION}-${CH_TAG}.zip"
 	zip -r0q "${SOURCES_DIR}/ClickHouse-${CH_VERSION}-${CH_TAG}.zip" "${CH_SRC_ROOT_DIR_LINK}" -x "${CH_SRC_ROOT_DIR_LINK}/build/*"
+}
+
+function clean_local_build()
+{
+	# cd one level up
+	cd ${CH_SRC_ROOT_DIR}/..
+	# check whether it is a symlink and remove it
+	[ -L ${CH_SRC_ROOT_DIR_LINK} ] && rm ${CH_SRC_ROOT_DIR_LINK}
 }
 
 export REBUILD_RPMS="no"

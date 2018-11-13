@@ -138,13 +138,16 @@ else
 
 cd "${BUILD_DIR}"
 
+# remove dir and .zip file
 rm -rf ClickHouse-%{version}-@CH_TAG@
 rm -rf ClickHouse-%{version}-@CH_TAG@.zip
 
+# copy .zip file here (into BUILD), unpack and remove .zip
 cp -f "${SOURCES_DIR}"/ClickHouse-%{version}-@CH_TAG@.zip .
 unzip -q ClickHouse-%{version}-@CH_TAG@.zip
 rm -rf ClickHouse-%{version}-@CH_TAG@.zip
 
+# jump into BUILD/sources and fix flags
 cd ClickHouse-%{version}-@CH_TAG@
 /usr/bin/chmod -Rf a+rX,u+w,g-w,o-w .
 
