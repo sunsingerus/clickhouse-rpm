@@ -64,10 +64,10 @@ export PATH=${PATH/"/usr/local/bin:"/}:/usr/local/bin
 # export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:/opt/rh/devtoolset-7/root/usr/lib64
 
 # Source libraries
-. ./src/os.lib.sh
-. ./src/publish_packagecloud.lib.sh
-. ./src/publish_ssh.lib.sh
-. ./src/util.lib.sh
+. "${SRC_DIR}"/os.lib.sh
+. "${SRC_DIR}"/publish_packagecloud.lib.sh
+. "${SRC_DIR}"/publish_ssh.lib.sh
+. "${SRC_DIR}"/util.lib.sh
 
 function set_rpmbuild_dirs()
 {
