@@ -91,6 +91,9 @@ function set_rpmbuild_dirs()
 
 	# Where temp files would be kept
 	TMP_DIR="$RPMBUILD_ROOT_DIR/TMP"
+
+	export BUILD_DIR
+	export SOURCES_DIR
 }
 
 ##
@@ -560,13 +563,22 @@ function setup_local_build()
 	set_rpmbuild_dirs "${CH_SRC_ROOT_DIR}/build/rpmbuild"
 	mkdirs
 
+	# build archive of CH sources in SOURCES
+
+	# how current dir is called
+	# make clickhouse out of /home/user/src/clickhouse
 	CH_SRC_ROOT_DIR_SHORT=${CH_SRC_ROOT_DIR##*/}
+
+	# how link should be named - the same as .zip file shoudl be called
 	CH_SRC_ROOT_DIR_LINK="ClickHouse-${CH_VERSION}-${CH_TAG}"
+
+	# step one level up of current sources and make link to current sources dir
 	cd ${CH_SRC_ROOT_DIR}/..
 	ln -s ${CH_SRC_ROOT_DIR_SHORT} ${CH_SRC_ROOT_DIR_LINK}
+
+	# archive current sources dir via symlink - thus archive would
+	# contain ClickHouse-18.14.13-stable folder in ClickHouse-18.14.13-stable.zip file
 	zip -r0q "${SOURCES_DIR}/ClickHouse-${CH_VERSION}-${CH_TAG}.zip" "${CH_SRC_ROOT_DIR_LINK}" -x "${CH_SRC_ROOT_DIR_LINK}/build/*"
-#	touch "${SOURCES_DIR}/ClickHouse-${CH_VERSION}-${CH_TAG}.zip"
-	ln -s "${CH_SRC_ROOT_DIR}" "${BUILD_DIR}/${CH_SRC_ROOT_DIR_LINK}"
 }
 
 export REBUILD_RPMS="no"

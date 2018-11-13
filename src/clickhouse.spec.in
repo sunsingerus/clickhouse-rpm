@@ -129,13 +129,25 @@ else
 	# 1. Delete BUILD/ClickHouse-%{version}-@CH_TAG@ folder
 	# 2. copy .zip file from SOURSES to BUILD, unpack .zip file. Important .zip file has to have ClickHouse-%{version}-@CH_TAG@ folder inside
 	# 3. cd into BUILD/ClickHouse-%{version}-@CH_TAG@, which is expected to be in .zip file
-%setup -q -n ClickHouse-%{version}-@CH_TAG@
-
+#%setup -q -n ClickHouse-%{version}-@CH_TAG@
 #cd '/home/user/src/clickhouse/build/rpmbuild/BUILD'
 #rm -rf 'ClickHouse-18.14.13-stable'
 #/usr/bin/tar -xf /home/user/src/clickhouse/build/rpmbuild/SOURCES/ClickHouse-18.14.13-stable.zip
 #cd 'ClickHouse-18.14.13-stable'
 #/usr/bin/chmod -Rf a+rX,u+w,g-w,o-w .
+
+cd "${BUILD_DIR}"
+
+rm -rf ClickHouse-%{version}-@CH_TAG@
+rm -rf ClickHouse-%{version}-@CH_TAG@.zip
+
+cp -f "${SOURCES_DIR}"/ClickHouse-%{version}-@CH_TAG@.zip .
+unzip -q ClickHouse-%{version}-@CH_TAG@.zip
+rm -rf ClickHouse-%{version}-@CH_TAG@.zip
+
+cd ClickHouse-%{version}-@CH_TAG@
+/usr/bin/chmod -Rf a+rX,u+w,g-w,o-w .
+
 
 fi
 
