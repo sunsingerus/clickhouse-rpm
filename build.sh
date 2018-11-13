@@ -711,6 +711,7 @@ elif [ "$COMMAND" == "local" ]; then
 	setup_local_build
 	build_spec_file
 	build_RPMs
+	clean_local_build
 
 else
 	# unknown command
