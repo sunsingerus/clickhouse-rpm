@@ -538,7 +538,10 @@ function setup_local_build()
 	fi
 
 	# stable or teting
-	TAG=$(echo $GIT_TAG | awk 'BEGIN {FS="-"}{print $2}')
+#	TAG=$(echo $GIT_TAG | awk 'BEGIN {FS="-"}{print $2}')
+	# extract everything after the first '-'
+	TAG=$(echo $GIT_TAG | awk -F: '{st = index($0, "-"); print substr($0, st+1)}')
+
 	if [ -z "TAG" ]; then
 		# TAG has to be specified. Expecting "stable" or "testing"
 		echo "Can not recognize CH tag $TAG"
