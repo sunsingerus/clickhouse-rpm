@@ -108,20 +108,35 @@ This package contains test suite for ClickHouse DBMS
 # Ensure source code is in BUILD/ClickHouse-%{version}-@CH_TAG@ folder
 # Prepare source code for being built
 
-if [ "${MYSRC}" == "yes" ]; then
+if [ "${REBUILD_RPMS}" == "yes" ]; then
+	echo "Rebuild RPMs from existing sources"
 	# Prepare sources 'as is', for example, from 'git clone'
 	# Sources are already expected to be located in BUILD/ClickHouse-%{version}-@CH_TAG@
+
 	# and would be used 'as is'. This is the way to go in case you need to modify sources
 	# 1. Do not delete BUILD/ClickHouse-%{version}-@CH_TAG@ folder
 	# 2. Do not copy sources .zip from SOURCES, do not unpack .zip archive into BUILD/, 
 	# 3. just cd into BUILD/ClickHouse-%{version}-@CH_TAG@ - it has to be here
 %setup -D -T -n ClickHouse-%{version}-@CH_TAG@
+
+#cd '/home/user/src/clickhouse/build/rpmbuild/BUILD'
+#cd 'ClickHouse-18.14.13-stable'
+#/usr/bin/chmod -Rf a+rX,u+w,g-w,o-w .
+
 else
+	echo "Build RPMs from .zip file"
 	# Prepare sources from .zip release source file
 	# 1. Delete BUILD/ClickHouse-%{version}-@CH_TAG@ folder
 	# 2. copy .zip file from SOURSES to BUILD, unpack .zip file. Important .zip file has to have ClickHouse-%{version}-@CH_TAG@ folder inside
 	# 3. cd into BUILD/ClickHouse-%{version}-@CH_TAG@, which is expected to be in .zip file
 %setup -q -n ClickHouse-%{version}-@CH_TAG@
+
+#cd '/home/user/src/clickhouse/build/rpmbuild/BUILD'
+#rm -rf 'ClickHouse-18.14.13-stable'
+#/usr/bin/tar -xf /home/user/src/clickhouse/build/rpmbuild/SOURCES/ClickHouse-18.14.13-stable.zip
+#cd 'ClickHouse-18.14.13-stable'
+#/usr/bin/chmod -Rf a+rX,u+w,g-w,o-w .
+
 fi
 
 
@@ -132,9 +147,15 @@ fi
 %build
 # we are in BUILD/ClickHouse-%{version}-@CH_TAG@ folder now
 
-rm -rf build
-mkdir build
+# Clear build folder, but keep 'rpmbuild' subfolder in it (if exists)
+echo "Start build"
+
+pwd
+mkdir -p build
+echo "ls build | grep -v 'rpmbuild' | xargs rm -rf"
+
 cd build
+
 $CMAKE .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE:STRING=Release @CMAKE_OPTIONS@
 make %{?_smp_mflags} @MAKE_OPTIONS@
 cd ..

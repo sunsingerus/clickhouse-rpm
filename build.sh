@@ -43,32 +43,17 @@ SSH_REPO_USER="${SSH_REPO_USER:-clickhouse}"
 # Root directory for repositories on the server used to publish packages
 SSH_REPO_ROOT="${SSH_REPO_ROOT:-/var/www/html/repos/clickhouse}"
 
+# This script dir
+MY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
+
 # Current work dir
-CWD_DIR=$(pwd)
+CWD_DIR="$(pwd)"
 
-# Source files dir
-SRC_DIR="$CWD_DIR/src"
+# Source files dir - relative to this script
+SRC_DIR="$MY_DIR/src"
 
-# Where RPMs would be built
-RPMBUILD_DIR="$CWD_DIR/rpmbuild"
-
-# Where build process will be run
-BUILD_DIR="$RPMBUILD_DIR/BUILD"
-
-# Where build RPM files would be kept
-RPMS_DIR="$RPMBUILD_DIR/RPMS/x86_64"
-
-# Where source files would be kept
-SOURCES_DIR="$RPMBUILD_DIR/SOURCES"
-
-# Where RPM spec file would be kept
-SPECS_DIR="$RPMBUILD_DIR/SPECS"
-
-# Where built SRPM files would be kept
-SRPMS_DIR="$RPMBUILD_DIR/SRPMS"
-
-# Where temp files would be kept
-TMP_DIR="$RPMBUILD_DIR/TMP"
+# Where RPMs would be built - relative to CWD - makes possible to build in whatever folder needed
+RPMBUILD_ROOT_DIR="$CWD_DIR/rpmbuild"
 
 # Detect number of threads to run 'make' command
 export THREADS=$(grep -c ^processor /proc/cpuinfo)
@@ -83,6 +68,30 @@ export PATH=${PATH/"/usr/local/bin:"/}:/usr/local/bin
 . ./src/publish_packagecloud.lib.sh
 . ./src/publish_ssh.lib.sh
 . ./src/util.lib.sh
+
+function set_rpmbuild_dirs()
+{
+	# Where RPMs would be built
+	RPMBUILD_ROOT_DIR=$1
+
+	# Where build process will be run
+	BUILD_DIR="$RPMBUILD_ROOT_DIR/BUILD"
+
+	# Where build RPM files would be kept
+	RPMS_DIR="$RPMBUILD_ROOT_DIR/RPMS/x86_64"
+
+	# Where source files would be kept
+	SOURCES_DIR="$RPMBUILD_ROOT_DIR/SOURCES"
+
+	# Where RPM spec file would be kept
+	SPECS_DIR="$RPMBUILD_ROOT_DIR/SPECS"
+
+	# Where built SRPM files would be kept
+	SRPMS_DIR="$RPMBUILD_ROOT_DIR/SRPMS"
+
+	# Where temp files would be kept
+	TMP_DIR="$RPMBUILD_ROOT_DIR/TMP"
+}
 
 ##
 ##
@@ -300,7 +309,7 @@ function build_dependencies()
 }
 
 ##
-## Prepare $RPMBUILD_DIR/SOURCES/ClickHouse-$CH_VERSION-$CH_TAG.zip file
+## Prepare $RPMBUILD_ROOT_DIR/SOURCES/ClickHouse-$CH_VERSION-$CH_TAG.zip file
 ##
 function prepare_sources()
 {
@@ -385,7 +394,7 @@ function build_RPMs()
 	mkdirs
 
 	banner "Setup RPM Macros"
-	echo '%_topdir '"$RPMBUILD_DIR"'
+	echo '%_topdir '"$RPMBUILD_ROOT_DIR"'
 %_tmppath '"$TMP_DIR"'
 %_smp_mflags  -j'"$THREADS" > ~/.rpmmacros
 
@@ -409,8 +418,13 @@ function build_RPMs()
 	cd "$CWD_DIR"
 
 	banner "Build RPMs"
+
+	banner "Build SRPMs"
 	rpmbuild -v -bs "$SPECS_DIR/clickhouse.spec"
+	
+	banner "Build RPMs"
 	rpmbuild -v -bb "$SPECS_DIR/clickhouse.spec"
+
 	banner "Build RPMs completed"
 
 	# Display results
@@ -472,7 +486,7 @@ function usage()
 	echo "./build.sh packages       - download sources, create SPEC file and build RPMs (do not install dependencies)"
 	echo "./build.sh rpms           - just build RPMs from .zip sourcesi"
 	echo "                            (do not download sources, do not create SPEC file, do not install dependencies)"
-	echo "MYSRC=yes ./build.sh rpms - just build RPMs from unpacked sources - most likely you have modified them"
+	echo "./build.sh rebuild_rpms   - just build RPMs from unpacked sources - most likely you have modified them"
 	echo "                            (do not download sources, do not create SPEC file, do not install dependencies)"
 	echo
 	echo "./build.sh publish packagecloud <packagecloud USER ID> - publish packages on packagecloud as USER"
@@ -483,11 +497,87 @@ function usage()
 	exit 0
 }
 
+function setup_local_build()
+{
+	export LOCAL_RPMBUILD="yes"
+
+	# Base dir of CH's sources
+	CH_SRC_ROOT_DIR=$(realpath "$MY_DIR"/..)
+
+	# For v18.14.13-stable
+
+	# Ex.: 54409
+	VERSION_REVISION=$(grep "set(VERSION_REVISION" ${CH_SRC_ROOT_DIR}/dbms/cmake/version.cmake | sed 's/^.*VERSION_REVISION \(.*\)$/\1/' | sed 's/[) ].*//')
+
+	# Ex.: 18 for v18.14.13-stable
+	VERSION_MAJOR=$(grep "set(VERSION_MAJOR" ${CH_SRC_ROOT_DIR}/dbms/cmake/version.cmake | sed 's/^.*VERSION_MAJOR \(.*\)/\1/' | sed 's/[) ].*//')
+
+	# Ex.:14 for v18.14.13-stable
+	VERSION_MINOR=$(grep "set(VERSION_MINOR" ${CH_SRC_ROOT_DIR}/dbms/cmake/version.cmake | sed 's/^.*VERSION_MINOR \(.*\)/\1/' | sed 's/[) ].*//')
+
+	# Ex.:13 for v18.14.13-stable
+	VERSION_PATCH=$(grep "set(VERSION_PATCH" ${CH_SRC_ROOT_DIR}/dbms/cmake/version.cmake | sed 's/^.*VERSION_PATCH \(.*\)/\1/' | sed 's/[) ].*//')
+
+	echo "Extracting from src: v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH} rev:$VERSION_REVISION"
+
+	if [ -z "$VERSION_MAJOR" ] || [ -z "$VERSION_MINOR" ] || [ -z "$VERSION_PATCH" ]; then
+		echo "Are we inside ClickHouse sources?"
+		exit 1
+	fi
+
+	# Ex.: v18.14.13-stable
+	GIT_TAG=$(cd "$CH_SRC_BASEDIR" && git describe --tags && cd "$CWD_DIR")
+	echo "Extracting from git: $GIT_TAG"
+
+	if [ -z "GIT_TAG" ]; then
+		echo "Are those ClickHouse sources tagged?"
+		exit 1
+	fi
+
+	# stable or teting
+	TAG=$(echo $GIT_TAG | awk 'BEGIN {FS="-"}{print $2}')
+	if [ -z "TAG" ]; then
+		# TAG has to be specified. Expecting "stable" or "testing"
+		echo "Can not recognize CH tag $TAG"
+		exit 1
+	fi
+
+	# v18.14.13
+	VER=$(echo $GIT_TAG | awk 'BEGIN {FS="-"}{print $1}')
+
+	if [ "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}" == "${VER}" ]; then
+		# Version looks good
+		echo "Version parsed: v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${TAG}"
+	else
+		echo "Tag is not equal extracted version "
+		echo "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH} not equals ${VER}"
+		exit 1
+	fi
+
+	CH_VERSION="${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}"
+	CH_TAG="${TAG}"
+
+	set_rpmbuild_dirs "${CH_SRC_ROOT_DIR}/build/rpmbuild"
+	mkdirs
+
+	CH_SRC_ROOT_DIR_SHORT=${CH_SRC_ROOT_DIR##*/}
+	CH_SRC_ROOT_DIR_LINK="ClickHouse-${CH_VERSION}-${CH_TAG}"
+	cd ${CH_SRC_ROOT_DIR}/..
+	ln -s ${CH_SRC_ROOT_DIR_SHORT} ${CH_SRC_ROOT_DIR_LINK}
+	zip -r0q "${SOURCES_DIR}/ClickHouse-${CH_VERSION}-${CH_TAG}.zip" "${CH_SRC_ROOT_DIR_LINK}" -x "${CH_SRC_ROOT_DIR_LINK}/build/*"
+#	touch "${SOURCES_DIR}/ClickHouse-${CH_VERSION}-${CH_TAG}.zip"
+	ln -s "${CH_SRC_ROOT_DIR}" "${BUILD_DIR}/${CH_SRC_ROOT_DIR_LINK}"
+}
+
+export REBUILD_RPMS="no"
+
 if [ -z "$1" ]; then
 	usage
 fi
 
 COMMAND="$1"
+
+set_rpmbuild_dirs $RPMBUILD_ROOT_DIR
 
 if [ "$COMMAND" == "version" ]; then
 	echo "v$CH_VERSION-$CH_TAG"
@@ -533,7 +623,13 @@ elif [ "$COMMAND" == "packages" ]; then
 	set_print_commands
 	build_packages
 
-elif [ "$COMMAND" == "rpms" ]; then
+elif [ "$COMMAND" == "rpm" ] || [ "$COMMAND" == "rpms" ]; then
+	ensure_os_rpm_based
+	set_print_commands
+	build_RPMs
+
+elif [ "$COMMAND" == "rebuild_rpm" ] || [ "$COMMAND" == "rebuild_rpms" ]; then
+	export REBUILD_RPMS="yes"
 	ensure_os_rpm_based
 	set_print_commands
 	build_RPMs
@@ -587,6 +683,13 @@ elif [ "$COMMAND" == "test" ]; then
 	clickhouse-client -q 'DROP DATABASE qwe'
 	echo "6) SHOW DATABASES"
 	clickhouse-client -q 'SHOW DATABASES FORMAT PrettyCompact'
+
+elif [ "$COMMAND" == "local" ]; then
+	set_print_commands
+	ensure_os_rpm_based
+	setup_local_build
+	build_spec_file
+	build_RPMs
 
 else
 	# unknown command
