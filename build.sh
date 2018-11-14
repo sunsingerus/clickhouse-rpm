@@ -151,7 +151,8 @@ function install_build_process_dependencies()
 {
 	banner "Install build tools"
 
-	sudo yum install -y m4 make
+	# sudo yum install -y m4 make
+	sudo yum install -y make
 
 	if os_centos; then
 		sudo yum install -y epel-release
@@ -172,7 +173,8 @@ function install_build_process_dependencies()
 
 	# libicu-devel -  ICU (support for collations and charset conversion functions
 	# libtool-ltdl-devel - cooperate with dynamic libs
-	sudo yum install -y zlib-devel openssl-devel libicu-devel libtool-ltdl-devel unixODBC-devel readline-devel
+	sudo yum install -y openssl-devel libicu-devel libtool-ltdl-devel unixODBC-devel readline-devel
+	#sudo yum install -y zlib-devel openssl-devel libicu-devel libtool-ltdl-devel unixODBC-devel readline-devel
 }
 
 ##
@@ -194,7 +196,7 @@ function install_dependencies()
 
 	install_general_dependencies
 	install_rpm_dependencies
-	install_mysql_libs
+#	install_mysql_libs
 	install_build_process_dependencies
 
 	install_workarounds

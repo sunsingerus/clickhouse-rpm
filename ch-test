@@ -1,0 +1,7 @@
+sudo yum install python-lxml
+sudo yum install python-requests
+
+sudo yum install python2-pip
+sudo pip install termcolor
+
+
