@@ -1,5 +1,6 @@
 clickhouse-test requires some Python modules
 
+sudo yum install epel-release
 sudo yum install python-lxml
 sudo yum install python-requests
 
