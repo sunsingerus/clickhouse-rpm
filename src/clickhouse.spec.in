@@ -171,12 +171,16 @@ cd build
 
 $CMAKE .. -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE:STRING=Release @CMAKE_OPTIONS@
 make %{?_smp_mflags} @MAKE_OPTIONS@
+MAKE_EXIT_CODE=$?
 
-echo "make reported exit code $?"
+echo "make reported exit code ${MAKE_EXIT_CODE}"
 
 if [ "${TEST_BINARIES}" == "yes" ]; then
 	echo "Running test"
-	ctest3
+	set +e
+	bash -c "ctest3 -j8"
+	CTEST_EXIT_CODE=$?
+	echo "ctest reported exit code ${CTEST_EXIT_CODE}"
 fi
 
 cd ..
